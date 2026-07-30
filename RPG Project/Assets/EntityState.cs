@@ -2,35 +2,70 @@ using UnityEngine;
 
 public abstract class EntityState
 {
-   protected Player player;
-   protected StateMachine stateMachine;
-   protected string stateName;
+    protected Player player;
+    protected StateMachine stateMachine;
+    protected string animBoolName;
 
-    public EntityState(Player player, StateMachine stateMachine, string stateName)
+    protected Animator anim;
+    protected Rigidbody2D rb;
+    protected PlayerInputSet input;
+
+    protected float stateTimer;
+    protected bool triggerCalled;
+
+    public EntityState(Player player, StateMachine stateMachine, string animBoolName)
     {
         this.player = player;
         this.stateMachine = stateMachine;
-        this.stateName = stateName;
-    }   
+        this.animBoolName = animBoolName;
+
+        anim = player.anim;
+        rb = player.rb;
+        input = player.input;
+    }
 
     public virtual void Enter()
     {
-        // Every time the state is changed, this will be called.
-
-        Debug.Log("I entered the state: " + stateName);
+        anim.SetBool(animBoolName, true);
+        triggerCalled = false;
     }
 
     public virtual void Update()
     {
-        // The logic of the state runs here.
+        stateTimer -= Time.deltaTime;
 
-        Debug.Log("I am updating the state: " + stateName);
+        anim.SetFloat("yVelocity", rb.linearVelocity.y);
+
+        if (input.Player.Dash.WasPressedThisFrame() && CanDash())
+        {
+            stateMachine.ChangeState(player.dashState);
+        }
     }
 
     public virtual void Exit()
     {
-        // This will be called every time the state is changed to a new one.
+        anim.SetBool(animBoolName, false);
+    }
 
-        Debug.Log("I exited the state: " + stateName);
+    public void CallAnimationTrigger()
+    {
+        triggerCalled = true;
+    }
+
+    
+    private bool CanDash()
+    {
+        if (player.wallDetected)
+        {
+            return false;
+        }
+
+        if (stateMachine.currentState == player.dashState)
+        {
+            return false;
+        }
+
+
+        return true;
     }
 }
