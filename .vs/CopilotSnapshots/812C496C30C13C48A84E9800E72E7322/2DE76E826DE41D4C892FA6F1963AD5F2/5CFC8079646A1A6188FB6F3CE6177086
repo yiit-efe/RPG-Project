@@ -1,0 +1,125 @@
+﻿using UnityEngine;
+
+public class Enemy_BattleState : EnemyState
+{
+    private Transform player;
+    private float lastTimeWasInBattle;
+    public Enemy_BattleState(Enemy enemy, StateMachine stateMachine, string animBoolName) : base(enemy, stateMachine, animBoolName)
+    {
+    }
+
+    public override void Enter()
+    {
+        base.Enter();
+
+        if (player == null)
+        {
+            RaycastHit2D hit = enemy.PlayerDetection();
+            if (hit.collider != null)
+            {
+                player = hit.transform;
+            }
+        }
+
+        if (ShouldRetreat())
+        {
+            int retreatDir = -DirectionToPlayer();
+            // if there's no ground behind where we'd step while retreating, go the opposite way
+            if (!enemy.backGroundDetected)
+            {
+                retreatDir *= -1;
+            }
+
+            rb.linearVelocity = new Vector2(enemy.retreatVelocity.x * retreatDir, enemy.retreatVelocity.y);
+
+            // keep facing the player while retreating
+            int desiredFacing = DirectionToPlayer();
+            if (enemy.facingDirection != desiredFacing)
+                enemy.Flip();
+        }
+    }
+
+    public override void Update()
+    {
+        base.Update();
+
+
+        RaycastHit2D detection = enemy.PlayerDetection();
+        if (detection.collider != null)
+        {
+            // store detected player transform for reuse
+            player = detection.transform;
+            UpdateBattleTimer();
+        }
+
+        if (BattleTimeIsOver())
+        {
+            stateMachine.ChangeState(enemy.idleState);
+            return;
+        }
+
+        if (WithinAttackRange())
+        {
+            // if the player is detected behind us (short back ray), flip to face them instead of attacking
+            RaycastHit2D backHit = enemy.PlayerDetectionBack();
+            if (backHit.collider != null)
+            {
+                player = backHit.transform;
+                enemy.HandleFlip(DirectionToPlayer());
+            }
+            else
+            {
+                stateMachine.ChangeState(enemy.attackState);
+            }
+        }
+        else
+        {
+            if (enemy.groundDetected == true)
+            {
+                enemy.SetVelocity(enemy.battleMoveSpeed * DirectionToPlayer(), rb.linearVelocity.y);
+            }
+
+            if (enemy.wallDetected == true)
+            {
+                stateMachine.ChangeState(enemy.idleState);
+                return;
+            }
+        }
+    }
+
+    private void UpdateBattleTimer()
+    {
+        lastTimeWasInBattle = Time.time;
+    }
+
+    private bool BattleTimeIsOver() => Time.time > lastTimeWasInBattle + enemy.battleTimeDuration;
+
+
+    public bool WithinAttackRange()
+    {
+        return DistanceToPlayer() < enemy.attackDistance;
+    }
+
+    public bool ShouldRetreat()
+    {
+        return DistanceToPlayer() < enemy.minimumRetreatDistance;
+    }
+
+    private float DistanceToPlayer()
+    {
+        if (player == null)
+        {
+            return float.MaxValue;
+        }
+        return Mathf.Abs(player.position.x - enemy.transform.position.x);
+    }
+
+    private int DirectionToPlayer()
+    {
+        if (player == null)
+        {
+            return 0;
+        }
+        return player.position.x > enemy.transform.position.x ? 1 : -1;
+    }
+}

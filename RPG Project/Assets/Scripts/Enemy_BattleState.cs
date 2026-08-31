@@ -1,0 +1,98 @@
+using UnityEngine;
+
+public class Enemy_BattleState : EnemyState
+{
+    private Transform player;
+    private float lastTimeWasInBattle;
+    public Enemy_BattleState(Enemy enemy, StateMachine stateMachine, string animBoolName) : base(enemy, stateMachine, animBoolName)
+    {
+    }
+
+    public override void Enter()
+    {
+        base.Enter();
+
+        if (player == null)
+        {
+            player = enemy.PlayerDetected().transform;
+        }
+
+        if (ShouldRetreat())
+        {
+            rb.linearVelocity = new Vector2(enemy.retreatVelocity.x * -DirectionToPlayer(), enemy.retreatVelocity.y);
+            enemy.HandleFlip(DirectionToPlayer());
+        }
+    }
+
+    public override void Update()
+    {
+        base.Update();
+
+
+        if (enemy.PlayerDetected() == true && enemy.groundDetected == true)
+        {
+            UpdateBattleTimer();
+        }else 
+            BattleTimeIsOver();
+
+        if (BattleTimeIsOver())
+        {
+            stateMachine.ChangeState(enemy.idleState);
+        }
+
+        if (WithinAttackRange())
+        {
+            stateMachine.ChangeState(enemy.attackState);
+        }
+        else
+        {
+
+            if (enemy.groundDetected == true)
+            {
+                enemy.SetVelocity(enemy.battleMoveSpeed * DirectionToPlayer(), rb.linearVelocity.y);
+            }
+
+            if (enemy.wallDetected == true)
+            {
+                stateMachine.ChangeState(enemy.idleState);
+            }
+
+        }
+    }
+
+    private void UpdateBattleTimer()
+    {
+        lastTimeWasInBattle = Time.time;
+    }
+
+    private bool BattleTimeIsOver() => Time.time > lastTimeWasInBattle + enemy.battleTimeDuration;
+
+
+    public bool WithinAttackRange()
+    {
+        return DistanceToPlayer() < enemy.attackDistance;
+    }
+
+    public bool ShouldRetreat()
+    {
+        return DistanceToPlayer() < enemy.minimumRetreatDistance;
+    }
+
+    private float DistanceToPlayer()
+    {
+        if (player == null)
+        {
+            return float.MaxValue;
+        }
+        return Mathf.Abs(player.position.x - enemy.transform.position.x);
+    }
+
+    private int DirectionToPlayer()
+    {
+        if (player == null)
+        {
+            return 0;
+        }
+        return player.position.x > enemy.transform.position.x ? 1 : -1;
+    }
+}

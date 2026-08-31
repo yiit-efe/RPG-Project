@@ -1,0 +1,30 @@
+﻿using UnityEngine;
+
+public class Enemy_AttackState : EnemyState
+{
+    public Enemy_AttackState(Enemy enemy, StateMachine stateMachine, string animBoolName) : base(enemy, stateMachine, animBoolName)
+    {
+    }
+    public override void Update()
+    {
+        base.Update();
+
+        if (triggerCalled)
+        {
+            // If player is behind (short back ray), flip to face them instead of continuing the attack
+            RaycastHit2D backHit = enemy.PlayerDetectionBack();
+            if (backHit.collider != null)
+            {
+                // Update facing and return to battle state so we can re-evaluate behavior
+                int dir = backHit.transform.position.x > enemy.transform.position.x ? 1 : -1;
+                enemy.HandleFlip(dir);
+                stateMachine.ChangeState(enemy.battleState);
+            }
+            else
+            {
+                // Attack finished, return to battle state
+                stateMachine.ChangeState(enemy.battleState);
+            }
+        }
+    }
+}
